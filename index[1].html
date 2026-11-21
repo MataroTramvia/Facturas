@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Facturas">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Facturas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  --paper:#EDF0EC; --card:#F8F9F6; --field:#FFFFFF; --ink:#17233B; --muted:#586477; --rule:#CBD3CB;
+  --stamp:#2A37AE; --on-stamp:#FFFFFF; --stamp-soft:#E0E3F7;
+  --danger:#B3261E; --ok:#1F6B47; --warn:#8A5A00;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1421; --card:#151D2F; --field:#1B2439; --ink:#E8ECF4; --muted:#9BA7BC; --rule:#2A3550;
+    --stamp:#98A3FF; --on-stamp:#0E1421; --stamp-soft:#232D5A; --danger:#FF8F86; --ok:#7AD3A6; --warn:#F0BE62;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1421; --card:#151D2F; --field:#1B2439; --ink:#E8ECF4; --muted:#9BA7BC; --rule:#2A3550;
+  --stamp:#98A3FF; --on-stamp:#0E1421; --stamp-soft:#232D5A; --danger:#FF8F86; --ok:#7AD3A6; --warn:#F0BE62;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.45 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+body.lock{overflow:hidden}
+h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif;margin:0;letter-spacing:-.01em}
+h1{font-size:30px;line-height:1.1;font-weight:700}
+h2{font-size:20px;font-weight:700}
+h3{font-size:15px;font-weight:700}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--stamp);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+.num,.amt,td.r,.tot td{font-variant-numeric:tabular-nums}
+
+#app{max-width:560px;margin:0 auto;padding:14px 16px 128px}
+.top{display:flex;align-items:baseline;justify-content:space-between;margin:6px 0 14px}
+
+/* periodo */
+.period{display:grid;gap:10px;margin-bottom:14px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--rule);border-radius:12px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;min-height:38px;border-radius:9px;font-weight:500;font-size:14px;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--field);color:var(--ink);font-weight:600}
+.pnav{display:flex;align-items:center;justify-content:space-between}
+.pnav strong{font-family:"Bricolage Grotesque",sans-serif;font-size:19px;text-transform:capitalize}
+.icon{width:44px;height:44px;border-radius:12px;border:1px solid var(--rule);background:var(--field);font-size:22px;line-height:1}
+
+/* herramientas y totales */
+.tools{display:grid;grid-template-columns:1.3fr 1fr;gap:8px;margin-bottom:14px}
+input,select,textarea{width:100%;min-height:46px;border:1px solid var(--rule);background:var(--field);border-radius:10px;padding:10px 12px;font-size:16px}
+textarea{resize:vertical;min-height:70px}
+select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 20px,calc(100% - 13px) 20px;background-size:5px 5px;background-repeat:no-repeat;padding-right:32px}
+.strip{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:12px;padding:12px 0 14px;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);margin-bottom:6px}
+.strip div{display:grid;gap:0}
+.strip b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.strip .big b{font-size:21px;font-family:"Bricolage Grotesque",sans-serif}
+.strip span{font-size:13px;color:var(--muted)}
+
+/* filas */
+ul.rows{list-style:none;margin:0;padding:0}
+.grp{margin:20px 0 4px;color:var(--muted);font-size:14px;text-transform:capitalize}
+.row{width:100%;display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule);padding:12px 0;min-height:68px}
+.thumb{width:44px;height:56px;border-radius:6px;object-fit:cover;background:var(--rule);display:block}
+.thumb.empty{display:grid;place-items:center;color:var(--muted);font-size:12px}
+.row-main{display:grid;gap:1px;min-width:0}
+.sup{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-amt{display:grid;justify-items:end;gap:4px}
+.amt{font-weight:600;font-size:16px}
+.nopay{font-size:12.5px;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:0 7px;line-height:20px}
+.empty-state{padding:36px 8px;text-align:center;color:var(--muted);display:grid;gap:14px;justify-items:center}
+.empty-state strong{color:var(--ink);font-family:"Bricolage Grotesque",sans-serif;font-size:20px}
+
+/* sello */
+.stamp{display:inline-block;border:2px solid var(--stamp);outline:1px solid var(--stamp);outline-offset:2px;color:var(--stamp);border-radius:6px;padding:0 9px;font:700 15px/1.5 "Bricolage Grotesque",sans-serif;transform:rotate(-5deg);background:transparent}
+.row-amt .stamp{margin-right:4px}
+.stamp.sm{font-size:12.5px;padding:0 6px;line-height:18px;border-width:1.5px;outline-offset:1.5px}
+.stamp.thump{animation:thump .4s cubic-bezier(.2,1.5,.4,1)}
+@keyframes thump{0%{transform:rotate(-5deg) scale(2.2);opacity:0}55%{opacity:1}100%{transform:rotate(-5deg) scale(1)}}
+
+/* botones */
+.btn{min-height:46px;padding:0 18px;border-radius:12px;border:1px solid var(--rule);background:var(--field);color:var(--ink);font-weight:600;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.btn.primary{background:var(--stamp);border-color:var(--stamp);color:var(--on-stamp)}
+.btn.danger{color:var(--danger)}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.55}
+.link{background:none;border:0;color:var(--stamp);font-weight:600;font-size:14.5px;padding:10px 2px;min-height:44px}
+.link.danger{color:var(--danger)}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.btn-row .btn{flex:1 1 140px}
+
+/* barra de pestañas */
+#tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--rule);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:560px;margin:0 auto}
+@supports (background:color-mix(in srgb,red 50%,blue)){
+  #tabs{background:color-mix(in srgb,var(--card) 90%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+}
+#tabs button{display:grid;justify-items:center;gap:2px;background:none;border:0;min-height:54px;color:var(--muted);font-size:12px;font-weight:500;padding:4px 0;border-radius:12px}
+#tabs button svg{width:24px;height:24px}
+#tabs button[aria-current="page"]{color:var(--stamp);font-weight:600}
+#tabs .add span.plus{display:grid;place-items:center;width:46px;height:32px;border-radius:12px;background:var(--stamp);color:var(--on-stamp)}
+#tabs .add{color:var(--ink);font-weight:600}
+
+/* editor y hojas */
+#editor{position:fixed;inset:0;z-index:40;background:var(--paper);overflow:auto;-webkit-overflow-scrolling:touch;padding-top:env(safe-area-inset-top,0px)}
+.ed-bar{position:sticky;top:0;z-index:2;background:var(--paper);border-bottom:1px solid var(--rule);display:grid;grid-template-columns:90px 1fr 90px;align-items:center;padding:6px 10px}
+.ed-bar h2{text-align:center;font-size:18px}
+.ed-bar .link{justify-self:start}
+.ed-body{max-width:560px;margin:0 auto;padding:16px 16px 140px;display:grid;gap:22px}
+.ed-foot{position:fixed;left:0;right:0;bottom:0;z-index:3;background:var(--paper);border-top:1px solid var(--rule);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.ed-foot .in{max-width:560px;margin:0 auto;display:grid;gap:8px}
+.fld{display:grid;gap:4px}
+.fld>span{font-size:13.5px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.photo{display:grid;gap:10px}
+.photo img.pv{width:100%;max-height:300px;object-fit:contain;background:var(--rule);border-radius:10px;display:block}
+.drop{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.drop label{min-height:96px;flex-direction:column;border-style:dashed;border-width:2px;border-color:var(--muted);background:transparent}
+.msg{font-size:14.5px;padding:10px 12px;border-radius:10px;background:var(--stamp-soft);color:var(--ink)}
+.msg.err{background:transparent;border:1px solid var(--danger);color:var(--danger)}
+.msg.ok{background:transparent;border:1px solid var(--ok);color:var(--ok)}
+.msg.warn{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+.line{display:grid;gap:8px;padding:12px;border:1px solid var(--rule);border-radius:12px}
+.lnums{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+.lcalc{grid-column:1/-1;display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+.lcalc b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+table.tot{width:100%;border-collapse:collapse;font-size:15px}
+.tot th{font-weight:500;color:var(--muted);text-align:left;padding:5px 0;font-size:13.5px}
+.tot td{text-align:right;padding:5px 0}
+.tot tr.sum td,.tot tr.sum th{border-top:2px solid var(--ink);padding-top:9px;color:var(--ink);font-size:18px;font-weight:700}
+.tot tr.sum td{font-family:"Bricolage Grotesque",sans-serif}
+.paid{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.paid div{flex:1 1 180px;font-size:14.5px}
+
+#sheet{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+#sheet .scrim{position:absolute;inset:0;background:rgba(10,15,28,.5)}
+#sheet .panel{position:relative;width:100%;max-width:560px;max-height:86%;overflow:auto;background:var(--card);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:14px;box-shadow:0 -6px 30px rgba(0,0,0,.25);outline:none}
+#sheet .panel.full{max-height:94%;padding:10px}
+#sheet .panel.full img{width:100%;display:block;border-radius:8px}
+.opt{width:100%;text-align:left;background:var(--field);border:1px solid var(--rule);border-radius:12px;padding:11px 12px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;min-height:56px}
+.opt .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opt .s{font-size:13.5px;color:var(--muted);grid-column:1}
+.opt .a{grid-row:1/3;grid-column:2;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.opt .hit{grid-column:1/-1;font-size:13px;color:var(--ok)}
+.opts{display:grid;gap:8px}
+table.prev{width:100%;border-collapse:collapse;font-size:13.5px}
+.prev td,.prev th{border-bottom:1px solid var(--rule);padding:6px 4px;text-align:left}
+.prev td.r{text-align:right}
+
+/* pagos y resumen */
+.props{border:1px solid var(--stamp);border-radius:14px;padding:12px;margin:0 0 16px;display:grid;gap:8px;background:var(--stamp-soft)}
+.prop{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--rule)}
+.prop .s{font-size:13.5px;color:var(--muted)}
+.prow{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:center;border-bottom:1px solid var(--rule);padding:11px 0;min-height:64px}
+.prow .pc{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .s{font-size:13.5px;color:var(--muted)}
+.prow .right{grid-row:1/3;grid-column:2;display:grid;justify-items:end;gap:3px}
+.sect{margin:22px 0 8px}
+.bars{display:grid;gap:10px}
+.bar{display:grid;gap:3px}
+.bar .lab{display:flex;justify-content:space-between;font-size:14.5px}
+.bar .track{height:8px;background:var(--rule);border-radius:4px;overflow:hidden}
+.bar .fill{height:100%;background:var(--stamp);border-radius:4px}
+details{border-top:1px solid var(--rule);padding:12px 0}
+summary{font-weight:600;cursor:pointer;min-height:32px}
+.note{font-size:14px;color:var(--muted)}
+.banner{background:transparent;border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+
+#toast{position:fixed;left:0;right:0;margin:0 auto;width:fit-content;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;max-width:min(92vw,520px);background:var(--ink);color:var(--paper);border-radius:12px;padding:11px 18px;font-size:15px;display:flex;align-items:center;gap:16px}
+#toast .stamp{flex:none;white-space:nowrap;color:var(--paper);border-color:var(--paper);outline-color:var(--paper)}
+@media (prefers-reduced-motion:reduce){.stamp.thump{animation:none}}
+</style>
+</head>
+<body>
+<div id="app"><div id="banner"></div><main id="view"></main></div>
+<nav id="tabs" aria-label="Secciones"></nav>
+<div id="editor" role="dialog" aria-modal="true" aria-label="Factura" hidden></div>
+<div id="sheet" hidden></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= utilidades ================= */
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+let eurFmt;
+try { eurFmt = new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR', useGrouping:'always'}); }
+catch (e) { eurFmt = new Intl.NumberFormat('es-ES', {style:'currency', currency:'EUR'}); }
+const fmt = n => eurFmt.format(Number(n) || 0);
+const r2 = n => Math.round((Number(n) || 0) * 100 + (n < 0 ? -1e-9 : 1e-9)) / 100;
+
+function parseNum(v){
+  if (typeof v === 'number') return isFinite(v) ? v : NaN;
+  let s = String(v == null ? '' : v).trim().replace(/[€\s\u00a0]/g, '');
+  if (!s) return NaN;
+  let neg = false;
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+  if (s.endsWith('-')) { neg = true; s = s.slice(0, -1); }
+  s = s.replace(/^\+/, '');
+  const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+  if (lc > -1 && ld > -1) {
+    if (lc > ld) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else if (lc > -1) {
+    s = (s.match(/,/g).length > 1) ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (ld > -1) {
+    if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  }
+  if (!/^-?\d*\.?\d+$/.test(s)) return NaN;
+  const n = parseFloat(s);
+  return neg ? -Math.abs(n) : n;
+}
+const num = v => { const n = parseNum(v); return isFinite(n) ? n : 0; };
+
+function mk(y, m, d){
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCMonth() !== m - 1) return null;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function parseDate(v){
+  if (v instanceof Date && !isNaN(v)) return mk(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  const s = String(v == null ? '' : v).trim();
+  let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return mk(+m[1], +m[2], +m[3]);
+  if ((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/))) { let y = +m[3]; if (y < 100) y += 2000; return mk(y, +m[2], +m[1]); }
+  return null;
+}
+const todayIso = () => { const d = new Date(); return mk(d.getFullYear(), d.getMonth() + 1, d.getDate()); };
+const daysBetween = (a, b) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 864e5);
+function fmtDate(iso, short){
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('es-ES', short ? {day:'numeric', month:'short'} : {day:'numeric', month:'short', year:'numeric'});
+}
+
+const DEFAULT_CATS = ['Suministros', 'Alimentación', 'Transporte', 'Hogar', 'Salud', 'Ocio', 'Trabajo', 'Otros'];
+const VATS = [21, 10, 4, 0];
+const MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+/* ================= cálculo ================= */
+function calc(inv){
+  const by = {};
+  for (const l of inv.lines) {
+    const k = Number(l.vat) || 0;
+    by[k] = by[k] || {base: 0};
+    by[k].base += num(l.base);
+  }
+  let base = 0, vat = 0;
+  for (const k in by) {
+    by[k].base = r2(by[k].base);
+    by[k].vat = r2(by[k].base * Number(k) / 100);
+    base += by[k].base; vat += by[k].vat;
+  }
+  return {base: r2(base), vat: r2(vat), total: r2(base + vat), by};
+}
+
+/* ================= periodo ================= */
+function inPeriod(iso, f){
+  if (f.mode === 'all') return true;
+  const y = +iso.slice(0, 4), m = +iso.slice(5, 7);
+  if (f.mode === 'year') return y === f.y;
+  if (f.mode === 'quarter') return y === f.y && Math.ceil(m / 3) === f.q;
+  return y === f.y && m === f.m;
+}
+function periodLabel(f){
+  if (f.mode === 'all') return 'Todo el historial';
+  if (f.mode === 'year') return String(f.y);
+  if (f.mode === 'quarter') return f.q + '.º trimestre ' + f.y;
+  return MONTHS[f.m - 1] + ' ' + f.y;
+}
+function shiftPeriod(f, dir){
+  if (f.mode === 'year') f.y += dir;
+  else if (f.mode === 'quarter') { f.q += dir; if (f.q > 4) { f.q = 1; f.y++; } if (f.q < 1) { f.q = 4; f.y--; } }
+  else if (f.mode === 'month') { f.m += dir; if (f.m > 12) { f.m = 1; f.y++; } if (f.m < 1) { f.m = 12; f.y--; } }
+}
+
+/* ================= conciliación ================= */
+// Importe que se cobra: el total impreso si lo hay, y si no el calculado.
+function payTotal(inv){ const d = parseNum(inv.totalDeclared); return isFinite(d) ? r2(d) : calc(inv).total; }
+function proposeMatches(invoices, payments, payBy){
+  const free = payments.filter(p => !p.invoiceId);
+  const cand = [];
+  for (const inv of invoices) {
+    if (payBy.has(inv.id)) continue;
+    const t = payTotal(inv);
+    if (t <= 0) continue;
+    for (const p of free) {
+      if (Math.abs(p.amount - t) > 0.009) continue;
+      const d = daysBetween(p.date, inv.date);
+      if (d < -5 || d > 45) continue;
+      cand.push({inv, p, gap: Math.abs(d)});
+    }
+  }
+  cand.sort((a, b) => a.gap - b.gap);
+  const ui = new Set(), up = new Set(), out = [];
+  for (const c of cand) {
+    if (ui.has(c.inv.id) || up.has(c.p.id)) continue;
+    ui.add(c.inv.id); up.add(c.p.id); out.push(c);
+  }
+  return out;
+}
+
+/* ================= CSV / tablas de banco ================= */
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 20);
+  const count = ch => lines.reduce((a, l) => a + (l.split(ch).length - 1), 0);
+  const delim = [';', '\t', ','].map(d => [d, count(d)]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === delim) { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(cur); cur = '';
+      if (row.some(x => x.trim() !== '')) rows.push(row);
+      row = [];
+    } else cur += c;
+  }
+  row.push(cur);
+  if (row.some(x => x.trim() !== '')) rows.push(row);
+  return rows;
+}
+function guessCols(rows){
+  const maxCols = Math.max(0, ...rows.slice(0, 60).map(r => r.length));
+  let h = rows.findIndex((r, i) => i < 40 && r.some(c => /fecha|date/i.test(String(c))) && r.filter(c => String(c).trim()).length >= 3);
+  if (h < 0) h = 0;
+  const head = (rows[h] || []).map(c => String(c).trim());
+  const find = re => head.findIndex(c => re.test(c));
+  let date = find(/fecha.*operaci|f\.?\s*operaci/i); if (date < 0) date = find(/fecha|date/i);
+  let concept = find(/concepto|descripci|detalle|movimiento|observaci|comercio/i);
+  let amount = find(/importe|cantidad|amount|cargo/i);
+  const data = rows.slice(h + 1, h + 61);
+  const score = fn => Array.from({length: maxCols}, (_, c) => data.filter(r => fn(r[c])).length);
+  const argmax = a => a.indexOf(Math.max(...a));
+  if (date < 0) date = argmax(score(v => !!parseDate(v)));
+  if (amount < 0) amount = argmax(score(v => isFinite(parseNum(v)) && /[,.]\d{1,2}\s*$/.test(String(v))));
+  if (concept < 0) {
+    const len = Array.from({length: maxCols}, (_, c) => (c === date || c === amount) ? -1 : data.reduce((a, r) => a + String(r[c] || '').length, 0));
+    concept = argmax(len);
+  }
+  return {h, date: Math.max(date, 0), concept: Math.max(concept, 0), amount: Math.max(amount, 0)};
+}
+function extractPayments(rows, cols, sign){
+  const out = [];
+  for (const r of rows.slice(cols.h + 1)) {
+    const date = parseDate(r[cols.date]);
+    const a = parseNum(r[cols.amount]);
+    if (!date || !isFinite(a) || a === 0) continue;
+    if (sign === 'neg' ? a >= 0 : a <= 0) continue;
+    out.push({date, concept: String(r[cols.concept] == null ? '' : r[cols.concept]).replace(/\s+/g, ' ').trim(), amount: r2(Math.abs(a))});
+  }
+  return out;
+}
+const payKey = p => p.date + '|' + p.amount.toFixed(2) + '|' + p.concept.toLowerCase();
+
+/* ================= estado ================= */
+const now = new Date();
+const S = {
+  invoices: [], payments: [], cats: DEFAULT_CATS.slice(),
+  tab: 'facturas', pf: 'sin', cat: '', q: '', payLimit: 150, lastBackup: null, api: {key: '', model: 'claude-sonnet-5-5'},
+  f: {mode: 'month', y: now.getFullYear(), m: now.getMonth() + 1, q: Math.ceil((now.getMonth() + 1) / 3)}
+};
+let E = null;                       // editor
+const MODELS = [['claude-sonnet-5-5', 'Sonnet 5.5 (más preciso)'], ['claude-haiku-5-5', 'Haiku 5.5 (más barato)']];
+const apiErr = (code, detail) => { const e = new Error(detail || code); e.code = code; return e; };
+let SAMPLE = {json: async (prompt, o) => {
+  const data = (await blobToDataURL(o.images)).split(',')[1];
+  let r;
+  try {
+    r = await fetch('https://api.anthropic.com/v1/messages', {method: 'POST', signal: o.signal,
+      headers: {'content-type': 'application/json', 'x-api-key': S.api.key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+      body: JSON.stringify({model: S.api.model, max_tokens: 1500, messages: [{role: 'user', content: [{type: 'image', source: {type: 'base64', media_type: 'image/jpeg', data}}, {type: 'text', text: prompt}]}]})});
+  } catch (e) { throw apiErr(e && e.name === 'AbortError' ? 'cancelled' : 'network'); }
+  if (!r.ok) {
+    let m = ''; try { m = (await r.json()).error.message || ''; } catch (_) {}
+    throw apiErr(r.status === 401 || r.status === 403 ? 'bad_key' : r.status === 429 ? 'rate_limited' : r.status === 404 ? 'bad_model' : (r.status === 400 && /credit|balance/i.test(m)) ? 'no_credit' : 'api_error', m);
+  }
+  const j = await r.json();
+  const t = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  const mt = t.replace(/```json|```/g, '').match(/\{[\s\S]*\}/);
+  if (!mt) throw apiErr('invalid_json');
+  try { return JSON.parse(mt[0]); } catch (_) { throw apiErr('invalid_json'); }
+}};
+let DL = {pending: null, save: async ({filename, data}) => {
+  const file = new File([data], filename, {type: /\.json$/.test(filename) ? 'application/json' : 'text/csv;charset=utf-8'});
+  if (navigator.canShare && navigator.canShare({files: [file]})) {
+    try { await navigator.share({files: [file], title: filename}); return; }
+    catch (e) { if (e && e.name === 'AbortError') throw apiErr('declined'); }
+  }
+  DL.pending = file;
+  openSheet('<h2>Archivo listo</h2><p class="note" style="margin:0">' + esc(filename) + '</p><button class="btn primary" data-act="share-file">Guardar o compartir</button><button class="btn" data-act="dl-file">Descargar</button><button class="btn" data-act="sheet-close">Cerrar</button>');
+  throw apiErr('declined');
+}};
+function openApiSheet(){
+  const a = S.api, known = MODELS.some(m => m[0] === a.model);
+  openSheet('<h2>Lectura automática</h2><p class="note" style="margin:0">Pega tu clave de la API de Anthropic. Se guarda solo en este dispositivo, y la foto de cada factura se envía a Anthropic para leerla.</p>' +
+    '<label class="fld"><span>Clave de la API</span><input id="api-key" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="sk-ant-…" value="' + esc(a.key) + '"></label>' +
+    '<label class="fld"><span>Modelo</span><select id="api-model">' + MODELS.map(m => '<option value="' + m[0] + '"' + (a.model === m[0] ? ' selected' : '') + '>' + m[1] + '</option>').join('') + '</select></label>' +
+    '<label class="fld"><span>Otro modelo (opcional, sustituye al anterior)</span><input id="api-custom" autocomplete="off" autocapitalize="none" value="' + (known ? '' : esc(a.model)) + '"></label>' +
+    '<div id="api-msg"></div><div class="btn-row" style="margin:0"><button class="btn" data-act="sheet-close">Cancelar</button><button class="btn primary" data-act="api-save">Guardar</button></div>' +
+    (a.key ? '<button class="link danger" data-act="api-clear" style="justify-self:start">Quitar la clave</button>' : ''));
+}
+let readCtl = null, DBOK = false, db = null, IMP = null;
+const urlCache = new Map();
+
+const payMap = () => { const m = new Map(); for (const p of S.payments) if (p.invoiceId) m.set(p.invoiceId, p); return m; };
+const thumbUrl = inv => {
+  if (!inv.thumb) return '';
+  if (!urlCache.has(inv.id)) urlCache.set(inv.id, URL.createObjectURL(inv.thumb));
+  return urlCache.get(inv.id);
+};
+
+/* ================= almacenamiento (IndexedDB) ================= */
+function openDB(){
+  return new Promise((res, rej) => {
+    try {
+      const rq = indexedDB.open('facturas-personal', 1);
+      rq.onupgradeneeded = () => { const d = rq.result; d.createObjectStore('invoices', {keyPath: 'id'}); d.createObjectStore('payments', {keyPath: 'id'}); d.createObjectStore('meta', {keyPath: 'k'}); };
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+      rq.onblocked = () => rej(new Error('blocked'));
+    } catch (e) { rej(e); }
+  });
+}
+function tx(store, mode, fn){
+  return new Promise((res, rej) => {
+    const t = db.transaction(store, mode); const s = t.objectStore(store);
+    let r; try { r = fn(s); } catch (e) { rej(e); return; }
+    t.oncomplete = () => res(r && r.result);
+    t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  });
+}
+const dbAll = store => DBOK ? tx(store, 'readonly', s => s.getAll()) : Promise.resolve([]);
+const dbPut = async (store, v) => { if (!DBOK) return; try { await tx(store, 'readwrite', s => s.put(v)); } catch (e) { toast('No se ha podido guardar en este navegador.'); } };
+const dbPutMany = async (store, arr) => { if (!DBOK || !arr.length) return; try { await tx(store, 'readwrite', s => { arr.forEach(v => s.put(v)); }); } catch (e) { toast('No se ha podido guardar en este navegador.'); } };
+const dbDel = async (store, id) => { if (!DBOK) return; try { await tx(store, 'readwrite', s => s.delete(id)); } catch (e) {} };
+const saveCats = () => dbPut('meta', {k: 'cats', v: S.cats});
+const saveBackupDate = () => { S.lastBackup = Date.now(); return dbPut('meta', {k: 'lastBackup', v: S.lastBackup}); };
+
+/* ================= imágenes ================= */
+async function compress(file, max, q){
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('img')); i.src = url; });
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const k = Math.min(1, max / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+    return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('blob')), 'image/jpeg', q));
+  } finally { URL.revokeObjectURL(url); }
+}
+const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+function dataURLToBlob(u){
+  const m = String(u).match(/^data:([^;,]+)?(;base64)?,(.*)$/); if (!m) return null;
+  const bin = atob(m[3]); const a = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+  return new Blob([a], {type: m[1] || 'image/jpeg'});
+}
+let xlsxP = null;
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxP) xlsxP = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX); s.onerror = () => { xlsxP = null; rej(new Error('xlsx')); };
+    document.head.appendChild(s);
+  });
+  return xlsxP;
+}
+
+/* ================= interfaz común ================= */
+let toastT = null;
+function toast(msg, stamp){
+  const t = $('#toast');
+  t.innerHTML = (stamp ? '<span class="stamp sm thump">Pagada</span>' : '') + '<span>' + esc(msg) + '</span>';
+  t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3800);
+}
+function syncLock(){ document.body.classList.toggle('lock', !$('#editor').hidden || !$('#sheet').hidden); }
+function openSheet(html, cls){
+  const s = $('#sheet');
+  s.innerHTML = '<div class="scrim" data-act="sheet-close"></div><div class="panel ' + (cls || '') + '" role="dialog" aria-modal="true" tabindex="-1">' + html + '</div>';
+  s.hidden = false; syncLock(); const p = s.querySelector('.panel'); if (p) p.focus({preventScroll: true});
+}
+function closeSheet(){ const s = $('#sheet'); s.hidden = true; s.innerHTML = ''; IMP = null; syncLock(); }
+function confirmSheet(title, text, okLabel, onOk, danger){
+  openSheet('<h2>' + esc(title) + '</h2><p class="note" style="margin:0">' + esc(text) + '</p><div class="btn-row" style="margin:0"><button class="btn" data-act="sheet-close">Cancelar</button><button class="btn ' + (danger ? 'danger' : 'primary') + '" data-act="confirm-ok">' + esc(okLabel) + '</button></div>');
+  confirmSheet.cb = onOk;
+}
+
+const ICON = {
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>',
+  cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  card: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg>',
+  bars: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19v-8M12 19V5M19 19v-6"/></svg>'
+};
+function renderTabs(){
+  const t = (k, label, ic, extra) => '<button data-act="tab" data-v="' + k + '"' + (S.tab === k ? ' aria-current="page"' : '') + (extra ? ' class="' + extra + '"' : '') + '>' + ic + '<span>' + label + '</span></button>';
+  $('#tabs').innerHTML = t('facturas', 'Facturas', ICON.list) +
+    '<button class="add" data-act="new-inv" aria-label="Añadir factura"><span class="plus">' + ICON.cam + '</span><span>Añadir</span></button>' +
+    t('pagos', 'Pagos', ICON.card) + t('resumen', 'Resumen', ICON.bars);
+}
+function periodBar(){
+  const f = S.f, modes = [['month','Mes'],['quarter','Trimestre'],['year','Año'],['all','Todo']];
+  return '<div class="period"><div class="seg" role="tablist" aria-label="Tipo de periodo">' +
+    modes.map(([k, l]) => '<button role="tab" aria-selected="' + (f.mode === k) + '" data-act="mode" data-v="' + k + '">' + l + '</button>').join('') + '</div>' +
+    (f.mode === 'all' ? '' : '<div class="pnav"><button class="icon" data-act="pshift" data-v="-1" aria-label="Periodo anterior">‹</button><strong>' + esc(periodLabel(f)) + '</strong><button class="icon" data-act="pshift" data-v="1" aria-label="Periodo siguiente">›</button></div>') + '</div>';
+}
+
+/* ================= vista: facturas ================= */
+function viewFacturas(){
+  return '<header class="top"><h1>Facturas</h1></header>' + periodBar() +
+    '<div class="tools"><input id="q" type="search" placeholder="Buscar" aria-label="Buscar factura" value="' + esc(S.q) + '">' +
+    '<select id="catf" aria-label="Filtrar por tipología"><option value="">Todas</option>' + S.cats.map(c => '<option' + (S.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>').join('') + '</select></div>' +
+    '<div id="list"></div>';
+}
+function matchQ(i, q){
+  return (i.supplier + ' ' + (i.number || '') + ' ' + (i.note || '') + ' ' + (i.category || '') + ' ' + i.lines.map(l => l.desc).join(' ')).toLowerCase().includes(q);
+}
+function renderList(){
+  const el = $('#list'); if (!el) return;
+  const pm = payMap(), q = S.q.trim().toLowerCase();
+  const rows = S.invoices.filter(i => inPeriod(i.date, S.f) && (!S.cat || i.category === S.cat) && (!q || matchQ(i, q)))
+    .sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt);
+  if (!rows.length) {
+    const any = S.invoices.length > 0;
+    el.innerHTML = '<div class="empty-state"><strong>' + (any ? 'No hay facturas en este filtro' : 'Aún no has guardado facturas') + '</strong><span>' +
+      (any ? 'Cambia el periodo o quita el filtro para ver otras.' : 'Haz una foto a la primera y la dejamos archivada con su IVA desglosado.') + '</span>' +
+      (any && S.f.mode !== 'all' ? '<button class="btn" data-act="mode" data-v="all">Ver todo el historial</button>' : '<button class="btn primary" data-act="new-inv">Añadir factura</button>') + '</div>';
+    return;
+  }
+  let base = 0, vat = 0;
+  for (const i of rows) { const c = calc(i); base += c.base; vat += c.vat; }
+  let html = '<div class="strip"><div><b>' + fmt(base) + '</b><span>Base</span></div><div><b>' + fmt(vat) + '</b><span>IVA</span></div><div class="big"><b>' + fmt(base + vat) + '</b><span>Total, ' + rows.length + (rows.length === 1 ? ' factura' : ' facturas') + '</span></div></div>';
+  let last = '';
+  html += '<ul class="rows">';
+  for (const i of rows) {
+    if (S.f.mode !== 'month') {
+      const g = MONTHS[+i.date.slice(5, 7) - 1] + ' ' + i.date.slice(0, 4);
+      if (g !== last) { html += '</ul><h3 class="grp">' + g + '</h3><ul class="rows">'; last = g; }
+    }
+    const c = calc(i), t = thumbUrl(i), paid = pm.has(i.id);
+    html += '<li><button class="row" data-act="open-inv" data-id="' + esc(i.id) + '">' +
+      (t ? '<img class="thumb" src="' + t + '" alt="" loading="lazy" decoding="async">' : '<span class="thumb empty">Sin foto</span>') +
+      '<span class="row-main"><span class="sup">' + esc(i.supplier) + '</span><span class="sub">' + esc(fmtDate(i.date) + (i.category ? ', ' + i.category : '')) + '</span></span>' +
+      '<span class="row-amt"><span class="amt">' + fmt(c.total) + '</span>' + (paid ? '<span class="stamp sm">Pagada</span>' : '<span class="nopay">Sin pago</span>') + '</span></button></li>';
+  }
+  el.innerHTML = html + '</ul>';
+}
+
+/* ================= vista: pagos ================= */
+function viewPagos(){
+  const pm = payMap(), inv = new Map(S.invoices.map(i => [i.id, i]));
+  const props = proposeMatches(S.invoices, S.payments, pm);
+  let pays = S.payments.filter(p => inPeriod(p.date, S.f));
+  if (S.pf === 'sin') pays = pays.filter(p => !p.invoiceId);
+  if (S.pf === 'con') pays = pays.filter(p => p.invoiceId);
+  pays.sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+  const shown = pays.slice(0, S.payLimit);
+  let html = '<header class="top"><h1>Pagos</h1></header>' + periodBar() +
+    '<div class="btn-row"><label class="btn" tabindex="0" data-act="pick-stmt">Importar extracto<input class="sr-only" type="file" accept=".csv,.txt,.xls,.xlsx,.ods,text/csv" data-file="stmt" tabindex="-1"></label><button class="btn" data-act="pay-new">Añadir pago</button></div>';
+  if (props.length) {
+    html += '<section class="props" aria-label="Posibles coincidencias"><h2>' + props.length + (props.length === 1 ? ' posible coincidencia' : ' posibles coincidencias') + '</h2><span class="note">Mismo importe y fechas cercanas. Revísalas antes de vincular.</span>' +
+      props.slice(0, 20).map(c => '<div class="prop"><div><strong>' + esc(c.inv.supplier) + '</strong> <span class="amt">' + fmt(c.p.amount) + '</span><div class="s">Factura del ' + esc(fmtDate(c.inv.date)) + ', pago del ' + esc(fmtDate(c.p.date)) + ' (' + esc(c.p.concept || 'sin concepto') + ')</div></div><button class="btn" data-act="link" data-p="' + esc(c.p.id) + '" data-i="' + esc(c.inv.id) + '">Vincular</button></div>').join('') +
+      (props.length > 1 ? '<button class="btn primary" data-act="link-all">Vincular las ' + props.length + '</button>' : '') + '</section>';
+  }
+  html += '<div class="seg" role="tablist" aria-label="Filtrar pagos" style="margin-bottom:8px">' + [['sin','Sin factura'],['con','Con factura'],['todos','Todos']].map(([k, l]) => '<button role="tab" aria-selected="' + (S.pf === k) + '" data-act="pf" data-v="' + k + '">' + l + '</button>').join('') + '</div>';
+  if (!S.payments.length) {
+    html += '<div class="empty-state"><strong>Sin pagos todavía</strong><span>Importa el extracto de tu tarjeta (CSV o Excel de tu banco) y vincula cada pago con su factura.</span></div>';
+  } else if (!shown.length) {
+    html += '<div class="empty-state"><strong>No hay pagos en este filtro</strong><span>Cambia el periodo o el filtro.</span></div>';
+  } else {
+    html += shown.map(p => {
+      const i = p.invoiceId ? inv.get(p.invoiceId) : null;
+      return '<div class="prow"><span class="pc">' + esc(p.concept || 'Sin concepto') + '</span><span class="s">' + esc(fmtDate(p.date)) + (i ? ', factura de ' + esc(i.supplier) : '') + '</span>' +
+        '<span class="right"><span class="amt">' + fmt(p.amount) + '</span>' +
+        (i ? '<span><span class="stamp sm">Pagada</span> <button class="link" data-act="unlink" data-p="' + esc(p.id) + '">Deshacer</button></span>' : '<button class="link" data-act="pay-link" data-p="' + esc(p.id) + '">Vincular</button>') + '</span></div>';
+    }).join('');
+    if (pays.length > shown.length) html += '<button class="btn block" style="margin-top:12px" data-act="more-pays">Mostrar más (' + (pays.length - shown.length) + ')</button>';
+  }
+  return html;
+}
+
+/* ================= vista: resumen ================= */
+function viewResumen(){
+  const rows = S.invoices.filter(i => inPeriod(i.date, S.f)), pm = payMap();
+  const t = {base: 0, vat: 0, total: 0}, byRate = {}, byCat = {};
+  let un = 0, unSum = 0;
+  for (const i of rows) {
+    const c = calc(i); t.base += c.base; t.vat += c.vat; t.total += c.total;
+    for (const k in c.by) { byRate[k] = byRate[k] || {base: 0, vat: 0}; byRate[k].base += c.by[k].base; byRate[k].vat += c.by[k].vat; }
+    const cat = i.category || 'Sin tipología'; byCat[cat] = (byCat[cat] || 0) + c.total;
+    if (!pm.has(i.id)) { un++; unSum += c.total; }
+  }
+  const rates = Object.keys(byRate).map(Number).sort((a, b) => b - a);
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const maxCat = cats.length ? cats[0][1] : 1;
+  let html = '<header class="top"><h1>Resumen</h1></header>' + periodBar();
+  if (!rows.length) {
+    html += '<div class="empty-state"><strong>Nada que resumir en este periodo</strong><span>Añade facturas o cambia el periodo.</span></div>';
+  } else {
+    html += '<div class="strip"><div><b>' + fmt(t.base) + '</b><span>Base</span></div><div><b>' + fmt(t.vat) + '</b><span>IVA</span></div><div class="big"><b>' + fmt(t.base + t.vat) + '</b><span>Total, ' + rows.length + (rows.length === 1 ? ' factura' : ' facturas') + '</span></div></div>' +
+      '<h2 class="sect">IVA por tipo</h2><table class="tot"><tr><th>Tipo</th><th style="text-align:right">Base</th><th style="text-align:right">IVA</th></tr>' +
+      rates.map(k => '<tr><th>' + (k === 0 ? 'Exento' : k + ' %') + '</th><td>' + fmt(byRate[k].base) + '</td><td>' + fmt(byRate[k].vat) + '</td></tr>').join('') +
+      '<tr class="sum"><th>Total</th><td>' + fmt(t.base) + '</td><td>' + fmt(t.vat) + '</td></tr></table>' +
+      '<h2 class="sect">Por tipología</h2><div class="bars">' + cats.map(([c, v]) => '<div class="bar"><div class="lab"><span>' + esc(c) + '</span><b class="num">' + fmt(v) + '</b></div><div class="track"><div class="fill" style="width:' + Math.max(3, Math.round(v / maxCat * 100)) + '%"></div></div></div>').join('') + '</div>' +
+      '<p class="note" style="margin-top:18px">' + (un === 0 ? 'Todas las facturas del periodo tienen su pago vinculado.' : un + (un === 1 ? ' factura sin pago vinculado' : ' facturas sin pago vinculado') + ', por ' + fmt(unSum) + '.') + '</p>';
+  }
+  const days = S.lastBackup ? Math.floor((Date.now() - S.lastBackup) / 864e5) : null;
+  html += '<h2 class="sect">Lectura automática</h2><p class="note" style="margin-top:0">' + (S.api.key ? 'Activada con el modelo ' + esc(S.api.model) + '.' : 'Desactivada. Añade tu clave de la API de Anthropic para que lea las facturas por ti.') + '</p><div class="btn-row"><button class="btn" data-act="api-open">' + (S.api.key ? 'Cambiar ajustes' : 'Configurar la lectura') + '</button></div>' +
+    '<h2 class="sect">Tus datos</h2>' +
+    (S.invoices.length && (days === null || days > 30) ? '<div class="banner">' + (days === null ? 'Aún no has hecho ninguna copia de seguridad.' : 'Tu última copia es de hace ' + days + ' días.') + '</div>' : '') +
+    '<p class="note" style="margin-top:0">Las facturas y sus fotos se guardan solo en este navegador. Si borras los datos de Safari se pierden, así que guarda una copia de vez en cuando.</p>' +
+    (DL ? '<div class="btn-row"><button class="btn" data-act="export-csv">Exportar CSV del periodo</button><button class="btn" data-act="backup">Guardar copia de seguridad</button></div>' : (CAPS_READY ? '<p class="note">Desde aquí no se pueden guardar archivos. Abre la app desde el enlace de Claude para exportar.</p>' : '')) +
+    '<div class="btn-row"><label class="btn" tabindex="0">Restaurar copia<input class="sr-only" type="file" accept=".json,application/json" data-file="restore" tabindex="-1"></label></div>' +
+    '<details><summary>Tenerla en la pantalla de inicio del iPhone</summary><p class="note">En Safari toca Compartir y elige Añadir a pantalla de inicio. Los datos de Safari y los del icono no se comparten: usa solo uno de los dos y pasa lo que tengas con una copia de seguridad.</p></details>' +
+    '<p class="note">Los totales de IVA son un apoyo para tus cuentas y no sustituyen a una gestoría.</p>';
+  return html;
+}
+
+function render(top){
+  const v = $('#view');
+  v.innerHTML = S.tab === 'facturas' ? viewFacturas() : S.tab === 'pagos' ? viewPagos() : viewResumen();
+  if (S.tab === 'facturas') renderList();
+  renderTabs();
+  if (top) window.scrollTo(0, 0);
+}
+
+/* ================= editor de factura ================= */
+function newInvoice(){
+  return {id: uid(), date: todayIso(), supplier: '', number: '', category: '', lines: [{desc: '', base: '', vat: 21}], totalDeclared: '', note: '', createdAt: Date.now()};
+}
+function openEditor(id){
+  const src = id ? S.invoices.find(i => i.id === id) : null;
+  E = {
+    isNew: !src, blob: src ? src.image || null : null, thumb: src ? src.thumb || null : null, url: null, dirty: false, dup: false,
+    inv: src ? Object.assign({}, src, {lines: src.lines.map(l => ({desc: l.desc, vat: l.vat, base: String(l.base).replace('.', ',')})), totalDeclared: src.totalDeclared == null ? '' : String(src.totalDeclared).replace('.', ',')}) : newInvoice()
+  };
+  delete E.inv.image; delete E.inv.thumb;
+  if (E.blob) E.url = URL.createObjectURL(E.blob);
+  const ed = $('#editor');
+  ed.innerHTML = editorHTML(); ed.hidden = false; ed.scrollTop = 0; syncLock();
+  edCatSelect(); edPhoto(); edLines(); edTotals(); edPay();
+}
+function editorHTML(){
+  const sup = Array.from(new Set(S.invoices.map(i => i.supplier))).sort();
+  return '<div class="ed-bar"><button class="link" data-act="ed-close">Cerrar</button><h2>' + (E.isNew ? 'Nueva factura' : 'Factura') + '</h2><span></span></div>' +
+    '<div class="ed-body">' +
+    '<section class="photo" id="ed-photo"></section>' +
+    '<section style="display:grid;gap:12px">' +
+      '<label class="fld"><span>Proveedor</span><input data-f="supplier" list="suppliers" autocomplete="off" autocapitalize="words" value="' + esc(E.inv.supplier) + '" placeholder="Por ejemplo, Endesa"></label>' +
+      '<datalist id="suppliers">' + sup.map(s => '<option value="' + esc(s) + '"></option>').join('') + '</datalist>' +
+      '<div class="two"><label class="fld"><span>Fecha</span><input type="date" data-f="date" value="' + esc(E.inv.date) + '"></label>' +
+      '<label class="fld"><span>Nº de factura</span><input data-f="number" autocomplete="off" value="' + esc(E.inv.number) + '"></label></div>' +
+      '<label class="fld"><span>Tipología</span><select data-f="category" id="ed-cat"></select></label>' +
+      '<div id="ed-newcat" hidden class="two" style="grid-template-columns:1fr auto"><input id="newcat-in" placeholder="Nombre de la tipología" aria-label="Nueva tipología"><button class="btn" data-act="cat-add">Añadir</button></div>' +
+    '</section>' +
+    '<section style="display:grid;gap:10px"><h2>Conceptos</h2><div id="ed-lines" style="display:grid;gap:10px"></div><button class="btn block" data-act="line-add">Añadir concepto</button></section>' +
+    '<section style="display:grid;gap:10px"><h2>Totales</h2><div id="ed-totals"></div>' +
+      '<label class="fld"><span>Total impreso en la factura (opcional, para comprobar)</span><input data-f="totalDeclared" inputmode="decimal" value="' + esc(E.inv.totalDeclared) + '" placeholder="0,00"></label><div id="ed-check"></div></section>' +
+    '<section style="display:grid;gap:10px"><label class="fld"><span>Nota (opcional)</span><textarea data-f="note" rows="2">' + esc(E.inv.note) + '</textarea></label></section>' +
+    (E.isNew ? '' : '<section style="display:grid;gap:10px"><h2>Pago</h2><div id="ed-pay"></div></section>') +
+    (E.isNew ? '' : '<button class="link danger" data-act="ed-delete" style="justify-self:start">Borrar factura</button>') +
+    '</div>' +
+    '<div class="ed-foot"><div class="in"><div id="ed-msg" aria-live="polite"></div><button class="btn primary block" data-act="ed-save">Guardar factura</button></div></div>';
+  }
+function edCatSelect(){
+  const s = $('#ed-cat'); if (!s) return;
+  const cur = E.inv.category;
+  const list = S.cats.slice(); if (cur && !list.includes(cur)) list.push(cur);
+  s.innerHTML = '<option value="">Elige una tipología</option>' + list.map(c => '<option' + (c === cur ? ' selected' : '') + '>' + esc(c) + '</option>').join('') + '<option value="__new">Nueva tipología…</option>';
+}
+function edMsg(text, kind){ const m = $('#ed-msg'); if (m) m.innerHTML = text ? '<div class="msg ' + (kind || '') + '">' + esc(text) + '</div>' : ''; }
+
+function edPhoto(){
+  const el = $('#ed-photo'); if (!el) return;
+  const pick = '<div class="drop"><label class="btn">' + ICON.cam + '<span>Hacer foto</span><input class="sr-only" type="file" accept="image/*" capture="environment" data-file="photo"></label>' +
+    '<label class="btn"><span>Elegir de la galería</span><input class="sr-only" type="file" accept="image/*" data-file="photo"></label></div>';
+  if (!E.blob) {
+    el.innerHTML = '<h2>Foto de la factura</h2>' + pick + '<p class="note" style="margin:0">Encuadra la factura entera y con buena luz. La foto se guarda reducida para no ocupar demasiado.</p>';
+    return;
+  }
+  const canRead = true;
+  el.innerHTML = '<h2>Foto de la factura</h2><button class="link" style="justify-self:start;padding:0;min-height:0" data-act="zoom" aria-label="Ver la foto a tamaño completo"><img class="pv" src="' + E.url + '" alt="Foto de la factura"></button>' +
+    '<div class="btn-row" style="margin:0">' +
+    (canRead ? '<button class="btn primary" id="btn-read" data-act="read">Leer factura con Claude</button>' : '') +
+    '<label class="btn"><span>Cambiar foto</span><input class="sr-only" type="file" accept="image/*" data-file="photo"></label></div>' +
+    '<div id="ed-read"></div>' +
+    (!canRead && CAPS_READY ? '<p class="note" style="margin:0">La lectura automática no está disponible aquí. Rellena los datos a mano mirando la foto.</p>' : '') +
+    (canRead ? '<p class="note" style="margin:0">' + (S.api.key ? 'Al leerla, la foto se envía a la API de Anthropic y se cobra de tu saldo. Siempre podrás corregir lo que lea.' : 'Para que la lea sola, toca el botón y añade tu clave de la API. Si no, rellénala a mano.') + '</p>' : '');
+}
+function edLines(){
+  const el = $('#ed-lines'); if (!el) return;
+  el.innerHTML = E.inv.lines.map((l, i) => {
+    const b = num(l.base), v = r2(b * l.vat / 100);
+    return '<div class="line" data-i="' + i + '"><input data-lk="desc" value="' + esc(l.desc) + '" placeholder="Concepto, por ejemplo consumo de luz" aria-label="Concepto ' + (i + 1) + '">' +
+      '<div class="lnums"><label class="fld"><span>Base imponible</span><input data-lk="base" inputmode="decimal" value="' + esc(l.base) + '" placeholder="0,00"></label>' +
+      '<label class="fld"><span>IVA</span><select data-lk="vat">' + VATS.map(x => '<option value="' + x + '"' + (x == l.vat ? ' selected' : '') + '>' + (x === 0 ? 'Exento (0 %)' : x + ' %') + '</option>').join('') + '</select></label>' +
+      '<div class="lcalc"><span>IVA <b class="lc-vat">' + fmt(v) + '</b></span><span>Con IVA <b class="lc-tot">' + fmt(b + v) + '</b></span></div></div>' +
+      (E.inv.lines.length > 1 ? '<button class="link danger" style="justify-self:start" data-act="line-del" data-i="' + i + '">Quitar concepto</button>' : '') + '</div>';
+  }).join('');
+}
+function edTotals(){
+  const el = $('#ed-totals'); if (!el) return;
+  const c = calc(E.inv), rates = Object.keys(c.by).map(Number).sort((a, b) => b - a);
+  el.innerHTML = '<table class="tot"><tr><th>Tipo</th><th style="text-align:right">Base</th><th style="text-align:right">IVA</th></tr>' +
+    rates.map(k => '<tr><th>' + (k === 0 ? 'Exento' : k + ' %') + '</th><td>' + fmt(c.by[k].base) + '</td><td>' + fmt(c.by[k].vat) + '</td></tr>').join('') +
+    '<tr class="sum"><th>Total</th><td colspan="2">' + fmt(c.total) + '</td></tr></table>';
+  const chk = $('#ed-check'), d = parseNum(E.inv.totalDeclared);
+  if (!isFinite(d)) { chk.innerHTML = ''; return; }
+  const diff = r2(c.total - d);
+  chk.innerHTML = Math.abs(diff) < 0.015 ? '<div class="msg ok">Cuadra con el total de la factura.</div>' : '<div class="msg warn">No cuadra: hay ' + fmt(Math.abs(diff)) + ' de diferencia con el total de la factura. Revisa bases y tipos de IVA.</div>';
+}
+function edPay(){
+  const el = $('#ed-pay'); if (!el) return;
+  const p = payMap().get(E.inv.id);
+  el.innerHTML = p
+    ? '<div class="paid"><span class="stamp">Pagada</span><div>' + esc(fmtDate(p.date)) + ', ' + esc(p.concept || 'sin concepto') + ', ' + fmt(p.amount) + '</div><button class="link" data-act="ed-unlink">Desvincular</button></div>'
+    : '<button class="btn block" data-act="ed-link">Vincular con un pago</button>';
+}
+
+async function onPhoto(file){
+  if (!file || !E) return;
+  edMsg('Preparando la foto…');
+  try {
+    const [full, th] = await Promise.all([compress(file, 1800, 0.82), compress(file, 220, 0.7)]);
+    if (E.url) URL.revokeObjectURL(E.url);
+    E.blob = full; E.thumb = th; E.url = URL.createObjectURL(full); E.dirty = true;
+    edMsg(''); edPhoto();
+  } catch (e) {
+    edMsg('No he podido abrir esa imagen. Prueba con otra foto.', 'err');
+  }
+}
+
+const SAMPLE_ERR = {
+  bad_key: 'La clave de la API no es válida. Revísala en Resumen, Lectura automática.',
+  no_credit: 'Tu cuenta de la API no tiene saldo. Añade crédito en la consola de Anthropic.',
+  bad_model: 'Ese modelo no existe o tu cuenta no tiene acceso. Cámbialo en los ajustes de lectura.',
+  network: 'No hay conexión con la API. Comprueba tu internet.',
+  api_error: 'La API ha devuelto un error. Inténtalo de nuevo en un rato.',
+  not_granted: 'Has dicho que no a usar Claude aquí. Puedes rellenar los datos a mano.',
+  sampling_disabled: 'Claude no está disponible en esta cuenta. Rellena los datos a mano.',
+  rate_limited: 'Has hecho demasiadas lecturas seguidas o llegado a tu límite de uso. Inténtalo más tarde.',
+  session_expired: 'Vuelve a iniciar sesión en Claude y prueba otra vez.',
+  image_rejected: 'No he podido usar esa imagen. Prueba con otra foto.',
+  refused: 'Claude no ha podido leer esta imagen. Rellena los datos a mano.',
+  invalid_json: 'No he entendido la respuesta. Prueba otra vez o rellena los datos a mano.',
+  empty_completion: 'No ha llegado ninguna respuesta. Prueba otra vez o rellena los datos a mano.'
+};
+async function readInvoice(){
+  if (!E || !E.blob || readCtl) return;
+  if (!S.api.key) { openApiSheet(); return; }
+  const btn = $('#btn-read'), out = $('#ed-read');
+  const cats = S.cats.join(', ');
+  const prompt =
+    'Eres un asistente que extrae datos de facturas españolas a partir de la foto adjunta. Responde SOLO con un objeto JSON, sin texto adicional, con esta forma:\n' +
+    '{"proveedor": string|null, "numero": string|null, "fecha": "AAAA-MM-DD"|null, "total": number|null, "categoria": string, "conceptos": [{"descripcion": string, "base": number, "iva": 21|10|4|0}]}\n' +
+    'Reglas:\n- Importes en euros como números con punto decimal, sin símbolo.\n- "conceptos" agrupa la factura en líneas con su base imponible (sin IVA) y su tipo de IVA en porcentaje. Si hay varios tipos de IVA, una línea por tipo como mínimo.\n' +
+    '- Si solo aparece el total con IVA y un tipo de IVA, calcula la base como total / (1 + iva/100).\n- "total" es el total final que paga el cliente.\n- "categoria" debe ser exactamente una de: ' + cats + '.\n' +
+    '- Si un dato no se ve con claridad, usa null. No inventes datos.';
+  readCtl = new AbortController();
+  if (btn) { btn.textContent = 'Leyendo la factura…'; btn.disabled = true; }
+  out.innerHTML = '<div class="msg">Leyendo la factura, puede tardar unos segundos. <button class="link" data-act="read-stop">Parar</button></div>';
+  try {
+    const d = await SAMPLE.json(prompt, {images: E.blob, signal: readCtl.signal});
+    applyRead(d);
+    out.innerHTML = '<div class="msg ok">Datos rellenados. Compáralos con la foto antes de guardar.</div>';
+  } catch (e) {
+    if (e && e.code === 'cancelled') out.innerHTML = '';
+    else out.innerHTML = '<div class="msg err">' + esc(SAMPLE_ERR[e && e.code] || 'No se pudo leer la factura. Puedes intentarlo otra vez o rellenarla a mano.') + '</div>';
+  } finally {
+    readCtl = null;
+    const b = $('#btn-read'); if (b) { b.textContent = 'Leer factura con Claude'; b.disabled = false; }
+  }
+}
+function nearestVat(v){ v = Number(v); return VATS.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a, 21); }
+function applyRead(d){
+  if (!d || typeof d !== 'object') return;
+  const inv = E.inv;
+  if (d.proveedor) inv.supplier = String(d.proveedor).trim();
+  if (d.numero) inv.number = String(d.numero).trim();
+  const dt = parseDate(d.fecha); if (dt) inv.date = dt;
+  if (d.categoria) { const c = S.cats.find(x => x.toLowerCase() === String(d.categoria).toLowerCase()); inv.category = c || 'Otros'; }
+  let lines = Array.isArray(d.conceptos) ? d.conceptos.map(l => ({desc: String((l && l.descripcion) || '').trim(), base: r2(num(l && l.base)), vat: nearestVat(l && l.iva)})).filter(l => l.base !== 0) : [];
+  const tot = parseNum(d.total);
+  if (!lines.length && isFinite(tot)) lines = [{desc: '', base: r2(tot / 1.21), vat: 21}];
+  if (lines.length) inv.lines = lines.map(l => ({desc: l.desc, vat: l.vat, base: String(l.base).replace('.', ',')}));
+  if (isFinite(tot)) inv.totalDeclared = String(r2(tot)).replace('.', ',');
+  E.dirty = true;
+  const ed = $('#editor');
+  ['supplier', 'date', 'number', 'totalDeclared'].forEach(f => { const el = ed.querySelector('[data-f="' + f + '"]'); if (el) el.value = inv[f]; });
+  edCatSelect(); edLines(); edTotals();
+}
+
+async function saveEditor(){
+  const inv = E.inv, supplier = String(inv.supplier).trim();
+  const fail = (m) => { edMsg(m, 'err'); return false; };
+  if (!supplier) return fail('Falta el proveedor.');
+  if (!parseDate(inv.date)) return fail('Revisa la fecha.');
+  const lines = inv.lines.map(l => ({desc: String(l.desc || '').trim(), base: r2(num(l.base)), vat: Number(l.vat) || 0})).filter(l => l.base !== 0 || l.desc);
+  if (!lines.length || lines.every(l => l.base === 0)) return fail('Añade al menos un concepto con su base imponible.');
+  const rec = {id: inv.id, date: inv.date, supplier, number: String(inv.number || '').trim(), category: inv.category || 'Otros', lines,
+    totalDeclared: isFinite(parseNum(inv.totalDeclared)) ? r2(parseNum(inv.totalDeclared)) : null, note: String(inv.note || '').trim(),
+    image: E.blob || null, thumb: E.thumb || null, createdAt: inv.createdAt || Date.now()};
+  const total = calc(rec).total;
+  if (E.isNew && !E.dup && S.invoices.some(i => i.supplier.toLowerCase() === supplier.toLowerCase() && i.date === rec.date && Math.abs(calc(i).total - total) < 0.005)) {
+    E.dup = true; edMsg('Ya tienes una factura de este proveedor, con esta fecha y este importe. Toca Guardar otra vez si quieres guardarla igualmente.', 'warn'); return false;
+  }
+  await dbPut('invoices', rec);
+  const ix = S.invoices.findIndex(i => i.id === rec.id);
+  if (ix >= 0) S.invoices[ix] = rec; else S.invoices.push(rec);
+  urlCache.delete(rec.id);
+  const wasNew = E.isNew;
+  closeEditor(true);
+  const hint = wasNew && proposeMatches([rec], S.payments, payMap()).length ? ' Hay un pago que coincide: míralo en Pagos.' : '';
+  if (!inPeriod(rec.date, S.f)) { const [y, m] = rec.date.split('-').map(Number); S.f.y = y; S.f.m = m; S.f.q = Math.ceil(m / 3); }
+  render(); toast('Factura guardada.' + hint);
+  return true;
+}
+function closeEditor(force){
+  if (!E) return;
+  if (!force && E.dirty) { confirmSheet('¿Descartar los cambios?', 'Lo que has escrito en esta factura no se guardará.', 'Descartar', () => closeEditor(true), true); return; }
+  if (readCtl) readCtl.abort();
+  if (E.url) URL.revokeObjectURL(E.url);
+  E = null; const ed = $('#editor'); ed.hidden = true; ed.innerHTML = ''; closeSheet(); syncLock();
+}
+function deleteInvoice(){
+  const id = E.inv.id;
+  confirmSheet('¿Borrar esta factura?', 'Se elimina también su foto. Si tenía un pago vinculado, el pago queda libre.', 'Borrar', async () => {
+    const un = S.payments.filter(p => p.invoiceId === id);
+    un.forEach(p => { p.invoiceId = null; }); await dbPutMany('payments', un);
+    await dbDel('invoices', id); S.invoices = S.invoices.filter(i => i.id !== id); urlCache.delete(id);
+    closeEditor(true); render(); toast('Factura borrada.');
+  }, true);
+}
+
+/* ================= vincular pagos y facturas ================= */
+async function doLink(pid, iid, quiet){
+  const p = S.payments.find(x => x.id === pid), inv = S.invoices.find(x => x.id === iid);
+  if (!p || !inv) return;
+  p.invoiceId = iid; await dbPut('payments', p);
+  if (!quiet) toast('Factura de ' + inv.supplier + ' vinculada.', true);
+}
+async function doUnlink(pid){
+  const p = S.payments.find(x => x.id === pid); if (!p) return;
+  p.invoiceId = null; await dbPut('payments', p);
+}
+function linkSheetForInvoice(){
+  const inv = E.inv, t = payTotal(inv);
+  const list = S.payments.filter(p => !p.invoiceId).map(p => ({p, hit: Math.abs(p.amount - t) < 0.009, gap: Math.abs(daysBetween(p.date, inv.date))}))
+    .sort((a, b) => (b.hit - a.hit) || (a.gap - b.gap)).slice(0, 40);
+  openSheet('<h2>Elige el pago</h2>' + (list.length ? '<div class="opts">' + list.map(x => '<button class="opt" data-act="do-link-inv" data-p="' + esc(x.p.id) + '"><span class="t">' + esc(x.p.concept || 'Sin concepto') + '</span><span class="s">' + esc(fmtDate(x.p.date)) + '</span><span class="a">' + fmt(x.p.amount) + '</span>' + (x.hit ? '<span class="hit">Coincide el importe</span>' : '') + '</button>').join('') + '</div>' : '<p class="note">No hay pagos libres. Importa el extracto de tu banco en la pestaña Pagos.</p>') + '<button class="btn" data-act="sheet-close">Cerrar</button>');
+}
+function linkSheetForPayment(pid){
+  const p = S.payments.find(x => x.id === pid); if (!p) return;
+  const pm = payMap();
+  const list = S.invoices.filter(i => !pm.has(i.id)).map(i => ({i, t: payTotal(i)})).map(x => Object.assign(x, {hit: Math.abs(x.t - p.amount) < 0.009, gap: Math.abs(daysBetween(p.date, x.i.date))}))
+    .sort((a, b) => (b.hit - a.hit) || (a.gap - b.gap)).slice(0, 40);
+  openSheet('<h2>Elige la factura</h2><p class="note" style="margin:0">Pago de ' + fmt(p.amount) + ' del ' + esc(fmtDate(p.date)) + '</p>' + (list.length ? '<div class="opts">' + list.map(x => '<button class="opt" data-act="do-link-pay" data-p="' + esc(p.id) + '" data-i="' + esc(x.i.id) + '"><span class="t">' + esc(x.i.supplier) + '</span><span class="s">' + esc(fmtDate(x.i.date)) + '</span><span class="a">' + fmt(x.t) + '</span>' + (x.hit ? '<span class="hit">Coincide el importe</span>' : '') + '</button>').join('') + '</div>' : '<p class="note">No hay facturas sin pago. Añade primero la factura.</p>') + '<button class="btn" data-act="sheet-close">Cerrar</button>');
+}
+function paySheetNew(){
+  openSheet('<h2>Añadir pago</h2><label class="fld"><span>Fecha</span><input type="date" id="np-date" value="' + todayIso() + '"></label><label class="fld"><span>Concepto</span><input id="np-con" autocomplete="off" placeholder="Por ejemplo, Mercadona"></label><label class="fld"><span>Importe</span><input id="np-amt" inputmode="decimal" placeholder="0,00"></label><div id="np-msg"></div><div class="btn-row" style="margin:0"><button class="btn" data-act="sheet-close">Cancelar</button><button class="btn primary" data-act="pay-save">Guardar pago</button></div>');
+}
+
+/* ================= importar extracto ================= */
+async function openImport(file){
+  try {
+    const name = file.name.toLowerCase(), buf = await file.arrayBuffer();
+    let rows;
+    if (/\.(xlsx|xls|xlsm|ods)$/.test(name)) {
+      const X = await loadXLSX();
+      const wb = X.read(buf, {type: 'array', cellDates: true});
+      rows = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, raw: false, defval: '', dateNF: 'yyyy-mm-dd'});
+    } else {
+      let text; try { text = new TextDecoder('utf-8', {fatal: true}).decode(buf); } catch (e) { text = new TextDecoder('windows-1252').decode(buf); }
+      rows = parseCSV(text);
+    }
+    if (rows.length < 2) throw new Error('vacío');
+    const cols = guessCols(rows);
+    const neg = rows.slice(cols.h + 1, cols.h + 80).filter(r => parseNum(r[cols.amount]) < 0).length;
+    IMP = {rows, cols, sign: neg > 0 ? 'neg' : 'pos'};
+    renderImport();
+  } catch (e) {
+    toast('No he podido leer ese archivo. Prueba con el CSV o el Excel que descargas del banco.');
+  }
+}
+function renderImport(){
+  const {rows, cols, sign} = IMP;
+  const maxC = Math.max(...rows.slice(0, 60).map(r => r.length));
+  const head = rows[cols.h] || [];
+  const opt = (sel) => Array.from({length: maxC}, (_, c) => '<option value="' + c + '"' + (c === sel ? ' selected' : '') + '>' + esc(String(head[c] || '').trim() || 'Columna ' + (c + 1)) + '</option>').join('');
+  const parsed = extractPayments(rows, cols, sign);
+  const sample = parsed.slice(0, 5);
+  openSheet('<h2>Importar extracto</h2><p class="note" style="margin:0">Comprueba que las columnas son las correctas.</p>' +
+    '<div class="two"><label class="fld"><span>Fecha</span><select data-imp="date">' + opt(cols.date) + '</select></label><label class="fld"><span>Importe</span><select data-imp="amount">' + opt(cols.amount) + '</select></label></div>' +
+    '<label class="fld"><span>Concepto</span><select data-imp="concept">' + opt(cols.concept) + '</select></label>' +
+    '<label class="fld"><span>Los gastos aparecen como importes</span><select data-imp="sign"><option value="neg"' + (sign === 'neg' ? ' selected' : '') + '>Negativos</option><option value="pos"' + (sign === 'pos' ? ' selected' : '') + '>Positivos</option></select></label>' +
+    (sample.length ? '<table class="prev"><tr><th>Fecha</th><th>Concepto</th><th class="r">Importe</th></tr>' + sample.map(p => '<tr><td>' + esc(fmtDate(p.date, true)) + '</td><td>' + esc(p.concept.slice(0, 28)) + '</td><td class="r">' + fmt(p.amount) + '</td></tr>').join('') + '</table>' : '<div class="msg err">Con estas columnas no salen pagos. Cambia la selección.</div>') +
+    '<div class="btn-row" style="margin:0"><button class="btn" data-act="sheet-close">Cancelar</button><button class="btn primary" data-act="imp-go"' + (parsed.length ? '' : ' disabled') + '>Importar ' + parsed.length + ' pagos</button></div>');
+}
+async function doImport(){
+  const {rows, cols, sign} = IMP;
+  const parsed = extractPayments(rows, cols, sign);
+  const have = new Map();
+  for (const p of S.payments) { const k = payKey(p); have.set(k, (have.get(k) || 0) + 1); }
+  const seen = new Map(), add = [];
+  for (const p of parsed) {
+    const k = payKey(p), n = seen.get(k) || 0; seen.set(k, n + 1);
+    if (n < (have.get(k) || 0)) continue;
+    add.push({id: uid(), date: p.date, concept: p.concept, amount: p.amount, invoiceId: null, source: 'import'});
+  }
+  S.payments.push(...add); await dbPutMany('payments', add);
+  closeSheet(); S.tab = 'pagos'; S.pf = 'sin'; S.f.mode = 'all'; render(true);
+  toast('Importados ' + add.length + ' pagos' + (parsed.length - add.length ? ' (' + (parsed.length - add.length) + ' ya estaban)' : '') + '.');
+}
+
+/* ================= copia de seguridad ================= */
+async function exportBackup(){
+  try {
+    const inv = await Promise.all(S.invoices.map(async i => Object.assign({}, i, {image: i.image ? await blobToDataURL(i.image) : null, thumb: undefined})));
+    const data = JSON.stringify({app: 'facturas-personal', v: 1, exportedAt: new Date().toISOString(), cats: S.cats, invoices: inv, payments: S.payments});
+    await DL.save({filename: 'facturas-copia-' + todayIso() + '.json', data});
+    await saveBackupDate(); render(); toast('Copia guardada.');
+  } catch (e) { if (!e || e.code !== 'declined') toast('No se ha podido guardar la copia.'); }
+}
+async function restoreBackup(file){
+  try {
+    const d = JSON.parse(await file.text());
+    if (!d || d.app !== 'facturas-personal' || !Array.isArray(d.invoices)) throw new Error('formato');
+    const haveI = new Set(S.invoices.map(i => i.id)), haveP = new Set(S.payments.map(p => p.id));
+    let ni = 0, np = 0; const newI = [], newP = [];
+    for (const i of d.invoices) {
+      if (!i || !i.id || haveI.has(i.id) || !Array.isArray(i.lines) || !parseDate(i.date)) continue;
+      const blob = i.image ? dataURLToBlob(i.image) : null;
+      let thumb = null; if (blob) { try { thumb = await compress(blob, 220, 0.7); } catch (e) {} }
+      newI.push({id: String(i.id), date: i.date, supplier: String(i.supplier || ''), number: String(i.number || ''), category: String(i.category || ''), lines: i.lines.map(l => ({desc: String(l.desc || ''), base: r2(num(l.base)), vat: nearestVat(l.vat)})), totalDeclared: i.totalDeclared == null ? null : num(i.totalDeclared), note: String(i.note || ''), image: blob, thumb, createdAt: Number(i.createdAt) || Date.now()});
+    }
+    for (const p of (Array.isArray(d.payments) ? d.payments : [])) {
+      if (!p || !p.id || haveP.has(p.id) || !parseDate(p.date) || !isFinite(parseNum(p.amount))) continue;
+      newP.push({id: String(p.id), date: p.date, concept: String(p.concept || ''), amount: r2(num(p.amount)), invoiceId: p.invoiceId ? String(p.invoiceId) : null, source: p.source || 'import'});
+    }
+    S.invoices.push(...newI); S.payments.push(...newP); ni = newI.length; np = newP.length;
+    await dbPutMany('invoices', newI); await dbPutMany('payments', newP);
+    if (Array.isArray(d.cats)) { const extra = d.cats.map(String).filter(c => !S.cats.includes(c)); if (extra.length) { S.cats.push(...extra); await saveCats(); } }
+    render(); toast('Restauradas ' + ni + ' facturas y ' + np + ' pagos.');
+  } catch (e) { toast('Ese archivo no parece una copia de seguridad de esta app.'); }
+}
+function invoicesCSV(rows){
+  const pm = payMap(), q = v => { v = String(v == null ? '' : v); return /[";\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const n = v => String(r2(v)).replace('.', ',');
+  const out = [['Fecha', 'Proveedor', 'Nº factura', 'Tipología', 'Concepto', 'Base', 'IVA %', 'Cuota IVA', 'Total línea', 'Pagada'].join(';')];
+  for (const i of rows) for (const l of i.lines) {
+    const b = num(l.base), v = r2(b * l.vat / 100);
+    out.push([i.date, i.supplier, i.number, i.category, l.desc, n(b), l.vat, n(v), n(b + v), pm.has(i.id) ? 'Sí' : 'No'].map(q).join(';'));
+  }
+  return '\uFEFF' + out.join('\r\n');
+}
+async function exportCSV(){
+  const rows = S.invoices.filter(i => inPeriod(i.date, S.f)).sort((a, b) => a.date < b.date ? -1 : 1);
+  if (!rows.length) { toast('No hay facturas en este periodo.'); return; }
+  const tag = S.f.mode === 'all' ? 'todo' : S.f.mode === 'year' ? S.f.y : S.f.mode === 'quarter' ? S.f.y + '-T' + S.f.q : S.f.y + '-' + String(S.f.m).padStart(2, '0');
+  try { await DL.save({filename: 'facturas-' + tag + '.csv', data: invoicesCSV(rows)}); toast('Archivo listo.'); }
+  catch (e) { if (!e || e.code !== 'declined') toast('No se ha podido guardar el archivo.'); }
+}
+
+/* ================= eventos ================= */
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act, v = b.dataset.v;
+  switch (a) {
+    case 'tab': S.tab = v; render(true); break;
+    case 'new-inv': if (!E) openEditor(null); break;
+    case 'open-inv': openEditor(b.dataset.id); break;
+    case 'mode': {
+      const f = S.f;
+      if (v === 'quarter') f.q = Math.ceil(f.m / 3);
+      if (v === 'month' && f.mode === 'quarter') f.m = (f.q - 1) * 3 + 1;
+      f.mode = v; render(); break;
+    }
+    case 'pshift': shiftPeriod(S.f, +v); S.f.q = S.f.mode === 'month' ? Math.ceil(S.f.m / 3) : S.f.q; render(); break;
+    case 'pf': S.pf = v; S.payLimit = 150; render(); break;
+    case 'more-pays': S.payLimit += 200; render(); break;
+    case 'sheet-close': closeSheet(); break;
+    case 'confirm-ok': { const cb = confirmSheet.cb; closeSheet(); if (cb) cb(); break; }
+    case 'ed-close': closeEditor(false); break;
+    case 'ed-save': b.disabled = true; try { await saveEditor(); } finally { b.disabled = false; } break;
+    case 'ed-delete': deleteInvoice(); break;
+    case 'line-add': E.inv.lines.push({desc: '', base: '', vat: 21}); E.dirty = true; edLines(); edTotals(); break;
+    case 'line-del': E.inv.lines.splice(+b.dataset.i, 1); E.dirty = true; edLines(); edTotals(); break;
+    case 'cat-add': {
+      const el = $('#newcat-in'), name = el.value.trim();
+      if (!name) { el.focus(); break; }
+      if (!S.cats.some(c => c.toLowerCase() === name.toLowerCase())) { S.cats.push(name); await saveCats(); }
+      E.inv.category = S.cats.find(c => c.toLowerCase() === name.toLowerCase()); E.dirty = true;
+      $('#ed-newcat').hidden = true; el.value = ''; edCatSelect(); break;
+    }
+    case 'zoom': openSheet('<img src="' + E.url + '" alt="Foto de la factura"><button class="btn" data-act="sheet-close">Cerrar</button>', 'full'); break;
+    case 'read': readInvoice(); break;
+    case 'read-stop': if (readCtl) readCtl.abort(); break;
+    case 'ed-link': linkSheetForInvoice(); break;
+    case 'do-link-inv': closeSheet(); await doLink(b.dataset.p, E.inv.id); edPay(); break;
+    case 'ed-unlink': { const p = payMap().get(E.inv.id); if (p) { await doUnlink(p.id); edPay(); } break; }
+    case 'pay-link': linkSheetForPayment(b.dataset.p); break;
+    case 'do-link-pay': closeSheet(); await doLink(b.dataset.p, b.dataset.i); render(); break;
+    case 'link': await doLink(b.dataset.p, b.dataset.i); render(); break;
+    case 'link-all': {
+      const props = proposeMatches(S.invoices, S.payments, payMap());
+      for (const c of props) await doLink(c.p.id, c.inv.id, true);
+      render(); toast(props.length + ' facturas vinculadas.', true); break;
+    }
+    case 'unlink': await doUnlink(b.dataset.p); render(); break;
+    case 'pay-new': paySheetNew(); break;
+    case 'pay-save': {
+      const date = parseDate($('#np-date').value), amt = parseNum($('#np-amt').value), con = $('#np-con').value.trim();
+      if (!date || !isFinite(amt) || amt <= 0) { $('#np-msg').innerHTML = '<div class="msg err">Pon una fecha y un importe mayor que cero.</div>'; break; }
+      const p = {id: uid(), date, concept: con, amount: r2(amt), invoiceId: null, source: 'manual'};
+      S.payments.push(p); await dbPut('payments', p); closeSheet(); S.tab = 'pagos'; render(); toast('Pago añadido.'); break;
+    }
+    case 'imp-go': await doImport(); break;
+    case 'api-open': openApiSheet(); break;
+    case 'api-save': {
+      const key = $('#api-key').value.trim(), cm = $('#api-custom').value.trim();
+      if (key && !/^sk-ant-/.test(key)) { $('#api-msg').innerHTML = '<div class="msg err">La clave debe empezar por sk-ant-. Cópiala entera desde la consola de Anthropic.</div>'; break; }
+      S.api = {key, model: cm || $('#api-model').value}; await dbPut('meta', {k: 'api', v: S.api});
+      closeSheet(); toast(key ? 'Ajustes guardados.' : 'Clave quitada.'); if (E) edPhoto(); else if (S.tab === 'resumen') render(); break;
+    }
+    case 'api-clear': S.api.key = ''; await dbPut('meta', {k: 'api', v: S.api}); closeSheet(); toast('Clave quitada.'); if (E) edPhoto(); else if (S.tab === 'resumen') render(); break;
+    case 'share-file': {
+      const f = DL.pending; if (!f) break;
+      try { await navigator.share({files: [f]}); if (/\.json$/.test(f.name)) await saveBackupDate(); closeSheet(); }
+      catch (e) { if (!e || e.name !== 'AbortError') toast('No se puede compartir desde aquí. Usa Descargar.'); }
+      break;
+    }
+    case 'dl-file': {
+      const f = DL.pending; if (!f) break;
+      const u = URL.createObjectURL(f), a = document.createElement('a'); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+      if (/\.json$/.test(f.name)) await saveBackupDate(); closeSheet(); break;
+    }
+    case 'export-csv': exportCSV(); break;
+    case 'backup': exportBackup(); break;
+  }
+});
+document.addEventListener('input', ev => {
+  const t = ev.target;
+  if (t.id === 'q') { S.q = t.value; renderList(); return; }
+  if (!E) return;
+  if (t.dataset.f && t.dataset.f !== 'category') {
+    E.inv[t.dataset.f] = t.value; E.dirty = true; E.dup = false;
+    if (t.dataset.f === 'totalDeclared') edTotals();
+  } else if (t.dataset.lk) {
+    const row = t.closest('.line'), l = E.inv.lines[+row.dataset.i]; if (!l) return;
+    l[t.dataset.lk] = t.dataset.lk === 'vat' ? Number(t.value) : t.value; E.dirty = true; E.dup = false;
+    if (t.dataset.lk !== 'desc') {
+      const b = num(l.base), v = r2(b * l.vat / 100);
+      row.querySelector('.lc-vat').textContent = fmt(v); row.querySelector('.lc-tot').textContent = fmt(b + v); edTotals();
+    }
+  }
+});
+document.addEventListener('change', ev => {
+  const t = ev.target;
+  if (t.id === 'catf') { S.cat = t.value; renderList(); return; }
+  if (t.dataset.file === 'photo') { const f = t.files && t.files[0]; t.value = ''; onPhoto(f); return; }
+  if (t.dataset.file === 'stmt') { const f = t.files && t.files[0]; t.value = ''; if (f) openImport(f); return; }
+  if (t.dataset.file === 'restore') { const f = t.files && t.files[0]; t.value = ''; if (f) restoreBackup(f); return; }
+  if (t.dataset.imp && IMP) {
+    if (t.dataset.imp === 'sign') IMP.sign = t.value; else IMP.cols[t.dataset.imp] = +t.value;
+    renderImport(); return;
+  }
+  if (!E) return;
+  if (t.dataset.f === 'category') {
+    if (t.value === '__new') { $('#ed-newcat').hidden = false; $('#newcat-in').focus(); }
+    else { E.inv.category = t.value; E.dirty = true; $('#ed-newcat').hidden = true; }
+  } else if (t.dataset.f === 'supplier' && !E.inv.category) {
+    const prev = S.invoices.filter(i => i.supplier.toLowerCase() === t.value.trim().toLowerCase() && i.category).sort((a, b) => b.createdAt - a.createdAt)[0];
+    if (prev) { E.inv.category = prev.category; edCatSelect(); }
+  }
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') { if (!$('#sheet').hidden) closeSheet(); else if (E) closeEditor(false); }
+  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('label.btn[tabindex]')) { ev.preventDefault(); const i = ev.target.querySelector('input'); if (i) i.click(); }
+});
+
+/* ================= arranque ================= */
+async function init(){
+  renderTabs();
+  try { db = await openDB(); DBOK = true; } catch (e) { DBOK = false; $('#banner').innerHTML = '<div class="banner">Este navegador no permite guardar datos aquí. Lo que añadas se perderá al cerrar. Abre la app en Safari.</div>'; }
+  try {
+    S.invoices = await dbAll('invoices'); S.payments = await dbAll('payments');
+    const meta = await dbAll('meta');
+    for (const m of meta) { if (m.k === 'cats' && Array.isArray(m.v) && m.v.length) S.cats = m.v; if (m.k === 'lastBackup') S.lastBackup = m.v; if (m.k === 'api' && m.v) S.api = Object.assign(S.api, m.v); }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  } catch (e) {}
+  render();
+}
+
+if (window.__TEST__) {
+  window.__t = {parseNum, parseDate, calc, parseCSV, guessCols, extractPayments, proposeMatches, payTotal, payKey, inPeriod, r2, invoicesCSV, nearestVat};
+} else { init(); }
+})();
+</script>
+</body>
+</html>
